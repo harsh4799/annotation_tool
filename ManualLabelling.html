@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sentiment Annotation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+    width: 90%;
+    max-width: 1200px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    margin: 0 auto; /* Center the container horizontally */
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 1000px;
+    margin-top: 20px; /* Add some top margin to the table */
+}
+
+/* Adjust the table cell padding for a longer table */
+th, td {
+    border: 1px solid #ddd;
+    padding: 2px;
+    word-wrap: break-word;
+    max-width: 800px;
+}
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        button {
+            padding: 6px 12px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        label {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Sentiment Annotation</h2>
+        <input type="file" id="csvFileInput" accept=".csv" onchange="handleFileSelect(event)">
+        <table id="data-table">
+            <thead>
+                <tr id="header-row">
+                    <!-- Columns will be dynamically added here -->
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be dynamically added here -->
+            </tbody>
+        </table>
+        <button id="backButton" onclick="previousRow()" disabled>Back</button>
+        <button id="nextButton" onclick="nextRow()" disabled>Next</button>
+        <button id="downloadButton" onclick="downloadData()">Download</button>
+
+    </div>
+
+    <script>
+        let data = [];
+        let currentIndex = 0;
+        let annotatedCount = 0;
+
+        function handleFileSelect(event) {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const contents = e.target.result;
+        data = parseCSV(contents);
+        currentIndex = findNextUnannotatedIndex();
+        annotatedCount = currentIndex;
+        displayHeader();
+        displayRow();
+        updateButtonState();
+    };
+    reader.readAsText(file);
+}
+
+function findNextUnannotatedIndex() {
+    for (let i = 0; i < data.length; i++) {
+        if (!data[i].Sentiment || !data[i].Rating) {
+            return i;
+        }
+    }
+    return data.length; // If all rows are annotated, return the index after the last row
+}
+
+        function parseCSV(csv) {
+            const lines = csv.split(/\r\n|\n/);
+            const headers = lines[0].split(",");
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(",");
+                const row = {};
+                for (let j = 0; j < headers.length; j++) {
+                    row[headers[j]] = values[j];
+                }
+                rows.push(row);
+            }
+            return rows;
+        }
+
+        function displayHeader() {
+            const headerRow = document.getElementById("header-row");
+            headerRow.innerHTML = "";
+            const headers = Object.keys(data[0]);
+            for (let i = 0; i < headers.length; i++) {
+                const th = document.createElement("th");
+                if(!(headers[i]=='Text' ||  headers[i] == 'Message_Action'))
+                    th.style.display = "none"; 
+                th.textContent = headers[i];
+                headerRow.appendChild(th);
+            }
+            // Add "Sentiment" and "Rating" columns
+            const sentimentTh = document.createElement("th");
+            sentimentTh.textContent = "Sentiment";
+            headerRow.appendChild(sentimentTh);
+            const ratingTh = document.createElement("th");
+            ratingTh.textContent = "Rating";
+            headerRow.appendChild(ratingTh);
+        }
+
+       
+    function displayRow() {
+        const currentRow = data[currentIndex];
+        const tableBody = document.querySelector("#data-table tbody");
+        tableBody.innerHTML = "";
+        const tr = document.createElement("tr");
+        const headers = Object.keys(currentRow);
+        for (let i = 0; i < headers.length; i++) {
+            const td = document.createElement("td");
+            if(!(headers[i]=='Text' ||  headers[i] == 'Message_Action'))
+                td.style.display = "none";
+            td.textContent = currentRow[headers[i]];
+            tr.appendChild(td);
+        }
+        const sentimentTd = document.createElement("td");
+        sentimentTd.innerHTML = `
+            <div>
+                <input type="radio" name="sentiment" value="Affection" onchange="setSentiment(this.value)"
+                    ${currentRow.Sentiment === "Affection" ? 'checked' : ''}>
+                <label for="affection">Affection</label>
+            </div>
+            <div>
+                <input type="radio" name="sentiment" value="Joy" onchange="setSentiment(this.value)"
+                    ${currentRow.Sentiment === "Joy" ? 'checked' : ''}>
+                <label for="joy">Joy</label>
+            </div>
+            <div>
+                <input type="radio" name="sentiment" value="Neutral" onchange="setSentiment(this.value)"
+                    ${currentRow.Sentiment === "Neutral" ? 'checked' : ''}>
+                <label for="neutral">Neutral</label>
+            </div>
+            <div>
+                <input type="radio" name="sentiment" value="Anger" onchange="setSentiment(this.value)"
+                    ${currentRow.Sentiment === "Anger" ? 'checked' : ''}>
+                <label for="anger">Anger</label>
+            </div>
+            <div>
+                <input type="radio" name="sentiment" value="Sadness" onchange="setSentiment(this.value)"
+                    ${currentRow.Sentiment === "Sadness" ? 'checked' : ''}>
+                <label for="sadness">Sadness</label>
+            </div>
+        `;
+        tr.appendChild(sentimentTd);
+        const ratingTd = document.createElement("td");
+        ratingTd.innerHTML = `
+            <div>
+                <input type="radio" name="rating" value="0" onchange="setRating(this.value)"
+                    ${currentRow.Rating === "0" ? 'checked' : ''}>
+                <label for="rating0">0</label>
+            </div>
+            <div>
+                <input type="radio" name="rating" value="3" onchange="setRating(this.value)"
+                    ${currentRow.Rating === "3" ? 'checked' : ''}>
+                <label for="rating3">3</label>
+            </div>
+            <div>
+                <input type="radio" name="rating" value="5" onchange="setRating(this.value)"
+                    ${currentRow.Rating === "5" ? 'checked' : ''}>
+                <label for="rating5">5</label>
+            </div>
+            <div>
+                <input type="radio" name="rating" value="7" onchange="setRating(this.value)"
+                    ${currentRow.Rating === "7" ? 'checked' : ''}>
+                <label for="rating7">7</label>
+            </div>
+            <div>
+                <input type="radio" name="rating" value="8" onchange="setRating(this.value)"
+                    ${currentRow.Rating === "8" ? 'checked' : ''}>
+                <label for="rating8">8</label>
+            </div>
+            <div>
+                <input type="radio" name="rating" value="9" onchange="setRating(this.value)"
+                    ${currentRow.Rating === "9" ? 'checked' : ''}>
+                <label for="rating9">9</label>
+            </div>
+            <div>
+                <input type="radio" name="rating" value="10" onchange="setRating(this.value)"
+                    ${currentRow.Rating === "10" ? 'checked' : ''}>
+                <label for="rating10">10</label>
+            </div>
+            <div>
+                <input type="radio" name="rating" value="custom" onchange="toggleCustomRatingInput()"
+                    ${currentRow.Rating !== "0" && currentRow.Rating !== "3" && currentRow.Rating !== "5" && currentRow.Rating !== "7" && currentRow.Rating !== "8" && currentRow.Rating !== "9" && currentRow.Rating !== "10" ? 'checked' : ''}>
+                <label for="customRating">Custom</label>
+                <input type="number" min="0" max="10" id="customRatingInput" onchange="setRating(this.value)" disabled
+                    value="${currentRow.Rating}">
+            </div>
+        `;
+        tr.appendChild(ratingTd);
+
+        tableBody.appendChild(tr);
+        updateButtonState();
+        if(data[currentIndex].Sentiment.length == 0){
+                    data[currentIndex].Sentiment = "Neutral";
+                data[currentIndex].Rating = "5";
+        }
+    }
+
+        function setSentiment(value) {
+            data[currentIndex].Sentiment = value;
+            if (value === "Neutral") {
+                const ratingRadios = document.getElementsByName("rating");
+                for (let i = 0; i < ratingRadios.length; i++) {
+                    ratingRadios[i].checked = false;
+                }
+            }
+            updateButtonState();
+        }
+
+        function setRating(value) {
+            if (value === "custom") {
+                const customRatingInput = document.getElementById("customRatingInput");
+                customRatingInput.disabled = false;
+                customRatingInput.focus();
+            } else {
+                const customRatingInput = document.getElementById("customRatingInput");
+                customRatingInput.disabled = true;
+                data[currentIndex].Rating = value;
+            }
+            updateButtonState();
+        }
+
+        function toggleCustomRatingInput() {
+            const customRatingInput = document.getElementById("customRatingInput");
+            if (customRatingInput.disabled) {
+                customRatingInput.disabled = false;
+                customRatingInput.focus();
+            } else {
+                customRatingInput.disabled = true;
+                data[currentIndex].Rating = customRatingInput.value;
+            }
+            updateButtonState();
+        }
+
+        function updateButtonState() {
+            const backButton = document.getElementById("backButton");
+            const nextButton = document.getElementById("nextButton");
+            backButton.disabled = currentIndex === 0;
+            nextButton.disabled = annotatedCount === data.length;
+        }
+
+        function previousRow() {
+            currentIndex--;
+            displayRow();
+            updateButtonState();
+        }
+
+        function nextRow() {
+            currentIndex++;
+            annotatedCount++;
+            displayRow();
+            updateButtonState();
+        }
+        function downloadData() {
+            const filename = "annotated_data.csv";
+            const csv = convertToCSV(data);
+            const element = document.createElement("a");
+            element.setAttribute("href", "data:text/csv;charset=utf-8," + encodeURIComponent(csv));
+            element.setAttribute("download", filename);
+            element.style.display = "none";
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+
+        function convertToCSV(data) {
+            const headers = Object.keys(data[0]);
+            const rows = data.map((row) => {
+                return headers.map((header) => row[header]).join(",");
+            });
+            return [headers.join(","), ...rows].join("\n");
+        }
+
+    </script>
+</body>
+</html>
